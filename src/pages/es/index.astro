@@ -1,0 +1,14 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { type SupportedLocale } from '../../utils/i18n';
+
+const locale: SupportedLocale = 'es';
+
+Astro.response.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+---
+
+<Layout 
+  title="AI Pricing Hub - Comparativa de herramientas y servicios de IA" 
+  description="Encuentra la solución de IA perfecta para tus necesidades con nuestra herramienta de comparación de precios."
+>
+</Layout>

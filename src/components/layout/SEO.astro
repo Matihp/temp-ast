@@ -1,0 +1,49 @@
+---
+import { generateSEOMetadata } from '../../utils/seo';
+
+const { title, description, locale, type, image, canonicalURL } = Astro.props;
+
+const seoData = generateSEOMetadata({
+  title,
+  description,
+  locale,
+  type,
+  image,
+  canonicalURL,
+  url: Astro.url,
+  site: Astro.site
+});
+---
+
+<title>{seoData.title}</title>
+<meta name="description" content={seoData.description} />
+<link rel="canonical" href={seoData.canonical} />
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content={seoData.openGraph.type} />
+<meta property="og:url" content={seoData.openGraph.url} />
+<meta property="og:title" content={seoData.openGraph.title} />
+<meta property="og:description" content={seoData.openGraph.description} />
+<meta property="og:image" content={seoData.openGraph.image} />
+<meta property="og:locale" content={seoData.openGraph.locale} />
+
+<!-- Twitter -->
+<meta name="twitter:card" content={seoData.twitter.card} />
+<meta name="twitter:url" content={seoData.twitter.url} />
+<meta name="twitter:title" content={seoData.twitter.title} />
+<meta name="twitter:description" content={seoData.twitter.description} />
+<meta name="twitter:image" content={seoData.twitter.image} />
+
+<!-- Alternativas de idioma -->
+<link rel="alternate" hreflang="es" href={seoData.alternateLanguages.es} />
+<link rel="alternate" hreflang="en" href={seoData.alternateLanguages.en} />
+
+<!-- Otras meta etiquetas importantes -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="robots" content="index, follow" />
+<meta name="googlebot" content="index, follow" />
+<meta name="theme-color" content="#ffffff" />
+
+<!-- Structured Data / JSON-LD para mejor indexación -->
+<script type="application/ld+json" set:html={JSON.stringify(seoData.structuredData)} />
