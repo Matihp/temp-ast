@@ -26,11 +26,21 @@
 	 * https://developers.cloudflare.com/workers/runtime-apis/bindings/
 	 */
 
-	/**
-	 * Environment Variables
-	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
-	 */
-	// "vars": { "MY_VARIABLE": "production_value" },
+  /**
+   * Environment Variables
+   * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
+   */
+  "vars": {
+    "DATABASE_URL": "",
+    "POSTHOG_API_KEY": "",
+    "POSTHOG_HOST": "",
+    "LOGTO_ISSUER_ENDPOINT": "",
+    "LOGTO_CLIENT_ID": "",
+    "LOGTO_RESOURCE_INDICATOR": "",
+    "PADDLE_API_KEY": "",
+    "PADDLE_WEBHOOK_SECRET": "",
+    "OPENAI_API_KEY": ""
+  },
 	/**
 	 * Note: Use secrets to store sensitive data.
 	 * https://developers.cloudflare.com/workers/configuration/secrets/

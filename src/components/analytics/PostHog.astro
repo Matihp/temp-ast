@@ -1,0 +1,8 @@
+<script type="module">
+  import posthog from "posthog-js"
+  const apiKey = globalThis.POSTHOG_API_KEY
+  const host = (globalThis.POSTHOG_HOST)
+  if (apiKey && host) {
+    posthog.init(apiKey, { api_host: host })
+  }
+</script>

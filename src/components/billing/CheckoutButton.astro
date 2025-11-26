@@ -1,0 +1,20 @@
+---
+const { priceId, quantity = 1, label = "Comprar" } = Astro.props as {
+  priceId: string
+  quantity?: number
+  label?: string
+}
+---
+<button id="paddle-checkout">{label}</button>
+<script type="module">
+  import { loadScript } from "paddle-billing/web"
+  const Paddle = await loadScript()
+  const btn = document.getElementById("paddle-checkout")
+  const priceId = "{priceId}"
+  const quantity = {quantity}
+  btn?.addEventListener("click", () => {
+    Paddle.Checkout.open({
+      items: [{ priceId, quantity }],
+    })
+  })
+</script>

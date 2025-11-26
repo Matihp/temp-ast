@@ -22,7 +22,13 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwindcss": "^4.1.14",
-    "wrangler": "^4.43.0"
+    "wrangler": "^4.43.0",
+    "@prisma/extension-accelerate": "^1.0.0",
+    "jose": "^5.2.4",
+    "posthog-node": "^3.3.0",
+    "posthog-js": "^1.127.0",
+    "paddle-billing": "^3.1.0",
+    "@logto/browser": "^3.0.9"
   },
   "devDependencies": {
     "prisma": "^6.17.1"

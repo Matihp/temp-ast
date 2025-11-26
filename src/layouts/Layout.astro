@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import SEO from '../components/layout/SEO.astro';
+import PostHog from '../components/analytics/PostHog.astro';
 import { ClientRouter } from "astro:transitions";
 
 interface Props {
@@ -14,6 +15,11 @@ const {
   description,
   locale = Astro.preferredLocale || 'es'
 } = Astro.props;
+const env = Astro.locals?.runtime?.env;
+const POSTHOG_API_KEY = env?.POSTHOG_API_KEY || '';
+const POSTHOG_HOST = env?.POSTHOG_HOST || '';
+const LOGTO_ISSUER_ENDPOINT = env?.LOGTO_ISSUER_ENDPOINT || '';
+const LOGTO_CLIENT_ID = env?.LOGTO_CLIENT_ID || '';
 ---
 
 <!doctype html>
@@ -36,6 +42,15 @@ const {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <PostHog />
+    <script is:inline>
+      (function(){
+        (globalThis).POSTHOG_API_KEY = "{POSTHOG_API_KEY}";
+        (globalThis).POSTHOG_HOST = "{POSTHOG_HOST}";
+        (globalThis).LOGTO_ISSUER_ENDPOINT = "{LOGTO_ISSUER_ENDPOINT}";
+        (globalThis).LOGTO_CLIENT_ID = "{LOGTO_CLIENT_ID}";
+      })();
+    </script>
   </head>
   <body class="min-h-screen flex flex-col bg-gray-50 dark:bg-background">
      <!-- <Header /> -->
