@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import SEO from '../components/layout/SEO.astro';
+import Header from '../components/layout/Header.astro';
 import PostHog from '../components/analytics/PostHog.astro';
 import { ClientRouter } from "astro:transitions";
 
@@ -20,6 +21,7 @@ const POSTHOG_API_KEY = env?.POSTHOG_API_KEY || '';
 const POSTHOG_HOST = env?.POSTHOG_HOST || '';
 const LOGTO_ISSUER_ENDPOINT = env?.LOGTO_ISSUER_ENDPOINT || '';
 const LOGTO_CLIENT_ID = env?.LOGTO_CLIENT_ID || '';
+const LOGTO_RESOURCE_INDICATOR = env?.LOGTO_RESOURCE_INDICATOR || '';
 ---
 
 <!doctype html>
@@ -49,11 +51,12 @@ const LOGTO_CLIENT_ID = env?.LOGTO_CLIENT_ID || '';
         (globalThis).POSTHOG_HOST = "{POSTHOG_HOST}";
         (globalThis).LOGTO_ISSUER_ENDPOINT = "{LOGTO_ISSUER_ENDPOINT}";
         (globalThis).LOGTO_CLIENT_ID = "{LOGTO_CLIENT_ID}";
+        (globalThis).LOGTO_RESOURCE_INDICATOR = "{LOGTO_RESOURCE_INDICATOR}";
       })();
     </script>
   </head>
   <body class="min-h-screen flex flex-col bg-gray-50 dark:bg-background">
-     <!-- <Header /> -->
+     <Header locale={locale} />
     <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <slot />
     </main>

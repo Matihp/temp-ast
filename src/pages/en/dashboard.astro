@@ -1,11 +1,18 @@
 ---
 import Layout from "../../layouts/Layout.astro"
 import LoginButton from "../../components/auth/LoginButton.tsx"
+import FeatureGate from "../../components/auth/FeatureGate"
+import CheckoutCta from "../../components/billing/CheckoutCta"
 ---
 <Layout title="Dashboard">
   <h1 class="text-2xl font-semibold">Dashboard</h1>
   <p class="mt-2">Access your projects and subscriptions.</p>
   <div class="mt-6">
     <LoginButton />
+  </div>
+  <div class="mt-6">
+    <FeatureGate client:load requireActive fallback={<div class="box"><p class="mb-2">Activate your subscription to view premium dashboard.</p><CheckoutCta client:load label="Buy Plan" /></div>}>
+      <div class="box">Premium Dashboard Section</div>
+    </FeatureGate>
   </div>
 </Layout>
