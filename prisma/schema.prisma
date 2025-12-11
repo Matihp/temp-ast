@@ -15,28 +15,39 @@ datasource db {
 }
 model User {
   id        String   @id @default(uuid())
-  name      String
+  authId    String   @unique // ID del proveedor de identidad (Logto subject)
+  paddleCustomerId String? @unique // ID del cliente en Paddle
+  name      String?
   email     String   @unique 
+  avatar    String?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
   apiKeys   ApiKey[]
   aiJobs    AiJob[]
   subscriptions Subscription[]
+  usageEvents UsageEvent[]
 }
 
 model ApiKey {
   id        String   @id @default(uuid())
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
   key       String   @unique
+  name      String?  // Nombre descriptivo para la key
   createdAt DateTime @default(now())
+  lastUsedAt DateTime?
   active    Boolean  @default(true)
 }
 
 model Plan {
   id        String   @id @default(uuid())
   name      String
-  priceId   String   @unique
+  priceId   String   @unique // ID del precio en Paddle
+  features  Json?    // Lista de features incluidas
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
+  subscriptions Subscription[]
 }
 
 model Subscription {
@@ -45,44 +56,82 @@ model Subscription {
   userId    String
   plan      Plan     @relation(fields: [planId], references: [id])
   planId    String
-  status    String
+  
+  status    String   // active, past_due, canceled, paused
+  paddleSubscriptionId String @unique
+  
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean @default(false)
+  
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  invoices Invoice[]
 }
 
 model Invoice {
   id          String   @id @default(uuid())
   subscription Subscription @relation(fields: [subscriptionId], references: [id])
   subscriptionId String
-  total       Int
+  
+  paddleTransactionId String?
+  amount      Int      // En centavos
   currency    String
+  status      String   // paid, open, void, uncollectible
+  
   issuedAt    DateTime @default(now())
+  paidAt      DateTime?
 }
 
 model UsageEvent {
   id        String   @id @default(uuid())
   user      User     @relation(fields: [userId], references: [id])
   userId    String
-  provider  String
-  tokens    Int
-  costCents Int
+  
+  feature   String   // e.g., "gpt-4-generation", "image-creation"
+  quantity  Int      @default(1)
+  cost      Float?   // Costo interno calculado si aplica
+  
+  metadata  Json?
   createdAt DateTime @default(now())
+}
+
+model FeatureFlag {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  description String?
+  isEnabled   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model AiJob {
   id        String   @id @default(uuid())
   user      User     @relation(fields: [userId], references: [id])
   userId    String
-  provider  String
-  type      String
-  status    String
+  
+  provider  String   // openai, anthropic, etc.
+  model     String
+  type      String   // text, image, audio
+  status    String   // pending, processing, completed, failed
+  
+  inputTokenCount  Int?
+  outputTokenCount Int?
+  
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
   result    AiResult?
 }
 
 model AiResult {
   id       String  @id @default(uuid())
-  job      AiJob   @relation(fields: [jobId], references: [id])
+  job      AiJob   @relation(fields: [jobId], references: [id], onDelete: Cascade)
   jobId    String  @unique
-  output   String
-  metadata Json
+  
+  output   String  @db.Text // Puede ser largo
+  metadata Json?
+  
+  createdAt DateTime @default(now())
 }

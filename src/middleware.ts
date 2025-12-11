@@ -28,7 +28,12 @@ const authProtect = defineMiddleware(async (context, next) => {
   const path = url.pathname
   const needsAuth = [/^\/dashboard/, /^\/es\/dashboard/, /^\/en\/dashboard/].some((r) => r.test(path))
   if (!needsAuth) return next()
-  const token = context.request.headers.get('authorization')?.replace('Bearer ', '')
+  
+  let token = context.request.headers.get('authorization')?.replace('Bearer ', '')
+  if (!token) {
+    token = context.cookies.get('logto_access_token')?.value
+  }
+
   if (!token) return context.redirect('/')
   const env = (context.locals as any).runtime?.env
   try {
