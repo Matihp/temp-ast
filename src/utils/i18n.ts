@@ -22,7 +22,7 @@ export function getModuleTranslation(module: 'navigation' | 'service' | 'pricing
   const moduleTranslations = getTranslationModule(module);
   
   const t = (key: string): string => {
-    return moduleTranslations[key]?.[locale] || key;
+    return moduleTranslations[locale] || key;
   };
   
   return t;
