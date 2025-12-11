@@ -12,9 +12,18 @@ const { priceId, quantity = 1, label = "Comprar" } = Astro.props as {
   const btn = document.getElementById("paddle-checkout")
   const priceId = "{priceId}"
   const quantity = {quantity}
-  btn?.addEventListener("click", () => {
-    Paddle.Checkout.open({
-      items: [{ priceId, quantity }],
-    })
+  async function getMe() {
+    const res = await fetch("/api/me", { headers: { "cache-control": "no-store" } })
+    if (!res.ok) return null
+    return await res.json()
+  }
+  btn?.addEventListener("click", async () => {
+    const me = await getMe()
+    const email = me?.user?.email
+    const authId = me?.user?.authId
+    const items = [{ priceId, quantity }]
+    const customData = authId ? { authId, email } : { }
+    const customer = email ? { email } : undefined
+    Paddle.Checkout.open({ items, customer, customData })
   })
 </script>

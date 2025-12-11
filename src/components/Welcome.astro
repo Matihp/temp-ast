@@ -1,12 +1,14 @@
 ---
 import astroLogo from '../assets/astro.svg';
 import background from '../assets/background.svg';
+import FeatureGate from "./auth/FeatureGate"
+import CheckoutCta from "./billing/CheckoutCta"
 ---
 
 <div id="container">
 	<img id="background" src={background.src} alt="" fetchpriority="high" />
-	<main>
-		<section id="hero">
+  <main>
+    <section id="hero">
 			<a href="https://astro.build"
 				><img src={astroLogo.src} width="115" height="48" alt="Astro Homepage" /></a
 			>
@@ -23,9 +25,15 @@ import background from '../assets/background.svg';
 						></path></svg
 					>
 				</a>
-			</section>
-		</section>
-	</main>
+      </section>
+
+      <div style="margin-top: 16px;">
+        <FeatureGate client:load requireActive fallback={<div class="box"><p style="margin-bottom:8px;">Accede al plan premium para ver esta sección.</p><CheckoutCta client:load label="Comprar Plan" /></div>}>
+          <div class="box">Contenido Premium habilitado por tu suscripción activa.</div>
+        </FeatureGate>
+      </div>
+    </section>
+  </main>
 
 	<a href="https://astro.build/blog/astro-5/" id="news" class="box">
 		<svg width="32" height="32" fill="none" xmlns="http://www.w3.org/2000/svg"
@@ -40,6 +48,7 @@ import background from '../assets/background.svg';
 		</p>
 	</a>
 </div>
+
 
 <style>
 	#background {
