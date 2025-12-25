@@ -11,7 +11,11 @@ import CheckoutCta from "../../components/billing/CheckoutCta"
     <LoginButton />
   </div>
   <div class="mt-6">
-    <FeatureGate client:load requireActive fallback={<div class="box"><p class="mb-2">Activate your subscription to view premium dashboard.</p><CheckoutCta client:load label="Buy Plan" /></div>}>
+    <FeatureGate client:load requireActive>
+      <div slot="fallback" class="box">
+        <p class="mb-2">Activate your subscription to view premium dashboard.</p>
+        <CheckoutCta client:load label="Buy Plan" />
+      </div>
       <div class="box">Premium Dashboard Section</div>
     </FeatureGate>
   </div>
