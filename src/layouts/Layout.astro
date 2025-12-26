@@ -16,7 +16,7 @@ const {
   description,
   locale = Astro.preferredLocale || 'es'
 } = Astro.props;
-const env = Astro.locals?.runtime?.env;
+const env = Astro.locals?.runtime?.env ?? (import.meta as any).env ?? (process as any)?.env ?? {};
 const POSTHOG_API_KEY = env?.POSTHOG_API_KEY || '';
 const POSTHOG_HOST = env?.POSTHOG_HOST || '';
 const LOGTO_ISSUER_ENDPOINT = env?.LOGTO_ISSUER_ENDPOINT || '';
@@ -45,14 +45,18 @@ const LOGTO_RESOURCE_INDICATOR = env?.LOGTO_RESOURCE_INDICATOR || '';
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <PostHog />
-    <script is:inline>
-      (function(){
-        (globalThis).POSTHOG_API_KEY = "{POSTHOG_API_KEY}";
-        (globalThis).POSTHOG_HOST = "{POSTHOG_HOST}";
-        (globalThis).LOGTO_ISSUER_ENDPOINT = "{LOGTO_ISSUER_ENDPOINT}";
-        (globalThis).LOGTO_CLIENT_ID = "{LOGTO_CLIENT_ID}";
-        (globalThis).LOGTO_RESOURCE_INDICATOR = "{LOGTO_RESOURCE_INDICATOR}";
-      })();
+    <script is:inline define:vars={{
+      POSTHOG_API_KEY,
+      POSTHOG_HOST,
+      LOGTO_ISSUER_ENDPOINT,
+      LOGTO_CLIENT_ID,
+      LOGTO_RESOURCE_INDICATOR
+    }}>
+      globalThis.POSTHOG_API_KEY = POSTHOG_API_KEY;
+      globalThis.POSTHOG_HOST = POSTHOG_HOST;
+      globalThis.LOGTO_ISSUER_ENDPOINT = LOGTO_ISSUER_ENDPOINT;
+      globalThis.LOGTO_CLIENT_ID = LOGTO_CLIENT_ID;
+      globalThis.LOGTO_RESOURCE_INDICATOR = LOGTO_RESOURCE_INDICATOR;
     </script>
   </head>
   <body class="min-h-screen flex flex-col bg-gray-50 dark:bg-background">

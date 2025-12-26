@@ -7,10 +7,17 @@ export default function LoginButton() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const resource = (globalThis as any).LOGTO_RESOURCE_INDICATOR
+    const resource = String((globalThis as any).LOGTO_RESOURCE_INDICATOR ?? "").trim()
+    const endpoint = String((globalThis as any).LOGTO_ISSUER_ENDPOINT ?? "").trim()
+    const appId = String((globalThis as any).LOGTO_CLIENT_ID ?? "").trim()
+    if (!endpoint || !/^https?:\/\//.test(endpoint) || !appId) {
+      console.error("LoginButton: Invalid configuration", { endpoint, appId, resource })
+      setIsLoading(false)
+      return
+    }
     const c = new LogtoClient({
-      endpoint: (globalThis as any).LOGTO_ISSUER_ENDPOINT,
-      appId: (globalThis as any).LOGTO_CLIENT_ID,
+      endpoint,
+      appId,
       resources: resource ? [resource] : [],
     })
     setClient(c)
