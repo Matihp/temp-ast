@@ -135,3 +135,18 @@ model AiResult {
   
   createdAt DateTime @default(now())
 }
+
+model Product {
+  id        String   @id @default(uuid())
+  name      String
+  brand     String?
+  price     Float?
+  size      String?
+  color     String?
+  type      String?  // remera, pantalon, etc.
+  gender    String?  // hombre, mujer, unisex
+  url       String   @unique
+  imageUrl  String?
+
+  scrapedAt DateTime @default(now())
+}
