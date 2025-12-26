@@ -28,6 +28,7 @@
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "astro": "^5.14.6",
+    "cheerio": "^1.1.2",
     "create-cloudflare": "^2.52.3",
     "jose": "^5.2.4",
     "paddle-billing": "^3.1.0",
