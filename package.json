@@ -12,7 +12,8 @@
     "migrate": "prisma migrate dev",
     "generate": "prisma generate",
     "studio": "prisma studio",
-    "seed": "prisma db seed"
+    "seed": "prisma db seed",
+    "scrape": "tsx scripts/scrape-test.ts"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
@@ -41,6 +42,7 @@
     "wrangler": "^4.43.0"
   },
   "devDependencies": {
-    "prisma": "^5.22.0"
+    "prisma": "^5.22.0",
+    "tsx": "^4.21.0"
   }
 }
