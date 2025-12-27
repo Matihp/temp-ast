@@ -18,5 +18,10 @@ export default defineConfig({
   // @ts-ignore
   vite: {
     plugins: [tailwindcss()],
+    resolve: {
+      alias: {
+        'react-dom/server': 'react-dom/server.edge', // 💡 Alias para evitar CommonJS
+      }
+    }
   },
 });

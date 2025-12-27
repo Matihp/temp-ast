@@ -1,65 +1,63 @@
 import { fetchHtml, extractDataWithAI } from '../src/lib/scraper/index';
+import { collectProductUrls } from '../src/lib/scraper/collector';
 
-const PRODUCT_URLS = [
-  // User provided URLs (these might be category URLs based on the chat, but user agreed to start with product URLs or similar)
-  // Let's use the ones provided in the prompt which seem to be category URLs,
-  // BUT the user said "si esos que dices esta bien" regarding "starting with product URLs".
-  // However, the user also provided category URLs.
-  // To avoid 404s or bad parsing on category pages treated as products,
-  // I will try to find a real product URL from those sites or use the provided ones and let the AI do its best
-  // (though the prompt is tuned for single products).
-  //
-  // Let's use a hypothetical product URL pattern from those sites for testing if I can't browse.
-  // Since I can't browse to find real product URLs, I will put placeholders
-  // and instruct the user to replace them with real product URLs,
-  // OR I will try to use the category URL and see if the AI can extract *something* (maybe the first product it sees).
-
-  // Actually, the user's plan is: "Iterate list... Scrape... Extract... Save".
-  // I will put the URLs the user gave me, even if they are categories, just to test connectivity.
-  // Ideally, the user should provide specific product URLs.
-  // I'll add a comment about this.
-
-  "https://www.sporting.com.ar/remera-nike-sportswear-club-hombre-6580/p", // Example guessed product URL
-  "https://www.sportline.com.ar/remera-nike-sportswear-club-hombre/p" // Example guessed product URL
+const CATEGORY_URLS = [
+  "https://www.sporting.com.ar/sporting/indumentaria",
+  "https://www.sporting.com.ar/hombre",
+  "https://www.sportline.com.ar/mujer/indumentaria",
+  "https://www.sportline.com.ar/hombre/indumentaria"
 ];
 
-// NOTE: Please replace the URLs above with REAL product detail pages for accurate testing.
-// The current logic is designed to extract details from a single product page.
-
-const API_ENDPOINT = 'http://localhost:4321/api/products'; // Assuming Astro runs on 4321 locally
+const API_ENDPOINT = 'http://localhost:4321/api/products';
+const MAX_PRODUCTS_PER_CATEGORY = 5; // Limit for testing
 
 async function run() {
-  console.log("Starting scraping job...");
+  console.log("Starting scraping job (Full Cycle)...");
 
-  for (const url of PRODUCT_URLS) {
-    console.log(`\nProcessing: ${url}`);
-    try {
-      // 1. Fetch HTML
-      console.log("  - Fetching HTML...");
-      const html = await fetchHtml(url);
+  for (const catUrl of CATEGORY_URLS) {
+    console.log(`\n=== Processing Category: ${catUrl} ===`);
 
-      // 2. Extract with AI
-      console.log("  - Extracting data with AI (Ollama)...");
-      // You can change 'llama3' to 'mistral' or whatever model you have pulled
-      const productData = await extractDataWithAI(html, 'llama3');
-      console.log("    > Extracted:", productData);
+    // 1. Collect URLs
+    const productUrls = await collectProductUrls(catUrl);
 
-      // 3. Save to DB via API
-      console.log("  - Saving to database...");
-      const saveRes = await fetch(API_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...productData, url }),
-      });
+    if (productUrls.length === 0) {
+      console.warn("  ! No products found in this category. Skipping.");
+      continue;
+    }
 
-      if (saveRes.ok) {
-        console.log("    > Success!");
-      } else {
-        console.error("    > Failed to save:", await saveRes.text());
+    // Limit the number of products to process
+    const toProcess = productUrls.slice(0, MAX_PRODUCTS_PER_CATEGORY);
+    console.log(`  > Will process ${toProcess.length} products (out of ${productUrls.length} found).`);
+
+    for (const url of toProcess) {
+      console.log(`\n  --- Product: ${url} ---`);
+      try {
+        // 2. Fetch HTML
+        console.log("    - Fetching HTML...");
+        const html = await fetchHtml(url);
+
+        // 3. Extract with AI
+        console.log("    - Extracting data with AI (Ollama)...");
+        const productData = await extractDataWithAI(html, 'mistral'); // Using mistral as requested (or llama3)
+        console.log("      > Extracted:", productData);
+
+        // 4. Save to DB
+        console.log("    - Saving to database...");
+        const saveRes = await fetch(API_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...productData, url }),
+        });
+
+        if (saveRes.ok) {
+          console.log("      > Success!");
+        } else {
+          console.error("      > Failed to save:", await saveRes.text());
+        }
+
+      } catch (error) {
+        console.error(`    ! Error processing product ${url}:`, error);
       }
-
-    } catch (error) {
-      console.error(`  ! Error processing ${url}:`, error);
     }
   }
 
