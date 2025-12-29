@@ -35,24 +35,18 @@ function getStrategy(url: string): SiteStrategy | undefined {
 export async function collectProductUrls(categoryUrl: string): Promise<string[]> {
   try {
     console.log(`  [Collector] Fetching category page: ${categoryUrl}`);
-    // We use the existing fetchHtml but we might want the raw HTML structure before cleanup
-    // Actually fetchHtml cleans up scripts/styles which is fine, we just need <a> tags.
-    // However, fetchHtml returns body text currently!
-    // Wait, fetchHtml in index.ts returns: $('body').text()...
-    // That removes tags! We need a version that returns cheerio instance or HTML string.
 
-    // I need to modify fetchHtml or create a new fetch helper that returns the cheerio object or raw HTML.
-    // Let's create a specialized fetch for collection here or refactor index.ts.
-    // Refactoring index.ts is better design.
-
-    // For now, let's just re-implement a simple fetch here to avoid breaking index.ts logic
-    // (which is tuned for AI text extraction).
+    // Add real headers to avoid blocking and ensure content delivery
     const res = await fetch(categoryUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'es-419,es;q=0.9,en;q=0.8',
+        'Referer': 'https://www.google.com/'
       },
     });
-    if (!res.ok) throw new Error(`Failed to fetch ${categoryUrl}`);
+
+    if (!res.ok) throw new Error(`Failed to fetch ${categoryUrl}: ${res.status}`);
     const html = await res.text();
     const $ = cheerio.load(html);
 
@@ -60,43 +54,71 @@ export async function collectProductUrls(categoryUrl: string): Promise<string[]>
     const productUrls = new Set<string>();
     const baseUrl = new URL(categoryUrl).origin;
 
-    if (strategy) {
-      console.log(`  [Collector] Using strategy for ${strategy.domain}`);
+    // Strategy 1: JSON-LD (ItemList) - Very reliable for e-commerce
+    $('script[type="application/ld+json"]').each((_, el) => {
+      try {
+        const json = JSON.parse($(el).html() || '{}');
+        // Handle direct ItemList or @graph array
+        const items = Array.isArray(json) ? json : [json];
 
-      // Method 1: Selector
-      if (strategy.productLinkSelector) {
-        $(strategy.productLinkSelector).each((_, el) => {
-          const href = $(el).attr('href');
-          if (href) productUrls.add(resolveUrl(href, baseUrl));
+        items.forEach(item => {
+          if (item['@type'] === 'ItemList' && Array.isArray(item.itemListElement)) {
+            item.itemListElement.forEach((element: any) => {
+              const url = element.url || element.item; // standard property is url, sometimes item string
+              if (typeof url === 'string') {
+                productUrls.add(resolveUrl(url, baseUrl));
+              }
+            });
+          }
         });
+      } catch (e) {
+        // ignore parse errors
       }
+    });
 
-      // Method 2: Regex on all links (if selector missed or as secondary)
-      if (strategy.productLinkPattern) {
+    if (productUrls.size > 0) {
+      console.log(`  [Collector] Found ${productUrls.size} URLs via JSON-LD.`);
+    }
+
+    // Strategy 2: Regex / Selectors (Fallback or Supplement)
+    if (productUrls.size === 0) {
+      if (strategy) {
+        // console.log(`  [Collector] Using strategy for ${strategy.domain}`);
+        if (strategy.productLinkSelector) {
+          $(strategy.productLinkSelector).each((_, el) => {
+            const href = $(el).attr('href');
+            if (href) productUrls.add(resolveUrl(href, baseUrl));
+          });
+        }
+
+        if (strategy.productLinkPattern) {
+          $('a').each((_, el) => {
+            const href = $(el).attr('href');
+            // Check if href matches pattern AND is NOT a query string mess if possible
+            if (href && strategy.productLinkPattern!.test(href)) {
+               productUrls.add(resolveUrl(href, baseUrl));
+            }
+          });
+        }
+      } else {
+        // Generic Fallback
         $('a').each((_, el) => {
           const href = $(el).attr('href');
-          if (href && strategy.productLinkPattern!.test(href)) {
-            productUrls.add(resolveUrl(href, baseUrl));
+          if (href) {
+            // Common e-commerce patterns
+            if (/\/p\/|product\/|\/p$|item\//i.test(href)) {
+               productUrls.add(resolveUrl(href, baseUrl));
+            }
           }
         });
       }
-    } else {
-      console.log(`  [Collector] No strategy found. Using heuristic (generic fallback).`);
-      // Heuristic: Look for links containing /p/ or /product/ or similar common patterns
-      $('a').each((_, el) => {
-        const href = $(el).attr('href');
-        if (href) {
-          if (/\/p\/|product\/|\/p$|item\//i.test(href)) {
-             productUrls.add(resolveUrl(href, baseUrl));
-          }
-        }
-      });
     }
 
     const results = Array.from(productUrls)
       .filter(u => u.startsWith('http'))
       .filter(u => !u.includes('initialMap=') && !u.includes('searchState=') && !u.includes('map=')); // Global filter for garbage
-    console.log(`  [Collector] Found ${results.length} unique product URLs.`);
+
+    console.log(`  [Collector] Final: ${results.length} unique product URLs.`);
     return results;
 
   } catch (error) {
