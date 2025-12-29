@@ -39,7 +39,7 @@ export interface ExtractedProduct {
   imageUrl?: string;
 }
 
-export async function extractDataWithAI(htmlContent: string, model: string = 'llama3'): Promise<ExtractedProduct> {
+export async function extractDataWithAI(htmlContent: string, model: string = 'ministral-3'): Promise<ExtractedProduct> {
   const prompt = `
     You are a helpful assistant that extracts structured product data from raw HTML text.
     Extract the following fields from the text below:

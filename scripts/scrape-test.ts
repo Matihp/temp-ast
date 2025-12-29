@@ -38,7 +38,7 @@ async function run() {
 
         // 3. Extract with AI
         console.log("    - Extracting data with AI (Ollama)...");
-        const productData = await extractDataWithAI(html, 'mistral'); // Using mistral as requested (or llama3)
+        const productData = await extractDataWithAI(html, 'ministral-3');
         console.log("      > Extracted:", productData);
 
         // 4. Save to DB
