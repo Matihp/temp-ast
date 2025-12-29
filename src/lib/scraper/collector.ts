@@ -9,16 +9,17 @@ interface SiteStrategy {
 const STRATEGIES: SiteStrategy[] = [
   {
     domain: 'sporting.com.ar',
-    // Sporting uses standard VTEX or similar structure usually, often /p at end or specific class
-    // Looking at examples: https://www.sporting.com.ar/remera-nike-.../p
-    productLinkPattern: /\/p$/i,
-    productLinkSelector: 'a[href*="/p"]'
+    // Sporting uses standard VTEX structure: https://www.sporting.com.ar/NAME/p
+    // We want to avoid listing pages that have parameters like ?initialMap or searchState
+    productLinkPattern: /\/p($|\?)/i,
+    // Selector should be specific if possible, but "a" with filtering is safer than broad selector
+    productLinkSelector: undefined
   },
   {
     domain: 'sportline.com.ar',
     // Examples: https://www.sportline.com.ar/remera-.../p
-    productLinkPattern: /\/p$/i,
-    productLinkSelector: 'a[href*="/p"]'
+    productLinkPattern: /\/p($|\?)/i,
+    productLinkSelector: undefined
   }
 ];
 
@@ -71,7 +72,7 @@ export async function collectProductUrls(categoryUrl: string): Promise<string[]>
       }
 
       // Method 2: Regex on all links (if selector missed or as secondary)
-      if (productUrls.size === 0 && strategy.productLinkPattern) {
+      if (strategy.productLinkPattern) {
         $('a').each((_, el) => {
           const href = $(el).attr('href');
           if (href && strategy.productLinkPattern!.test(href)) {
@@ -92,7 +93,9 @@ export async function collectProductUrls(categoryUrl: string): Promise<string[]>
       });
     }
 
-    const results = Array.from(productUrls).filter(u => u.startsWith('http'));
+    const results = Array.from(productUrls)
+      .filter(u => u.startsWith('http'))
+      .filter(u => !u.includes('initialMap=') && !u.includes('searchState=') && !u.includes('map=')); // Global filter for garbage
     console.log(`  [Collector] Found ${results.length} unique product URLs.`);
     return results;
 

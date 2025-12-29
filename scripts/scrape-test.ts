@@ -43,16 +43,24 @@ async function run() {
 
         // 4. Save to DB
         console.log("    - Saving to database...");
-        const saveRes = await fetch(API_ENDPOINT, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...productData, url }),
-        });
+        try {
+          const saveRes = await fetch(API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...productData, url }),
+          });
 
-        if (saveRes.ok) {
-          console.log("      > Success!");
-        } else {
-          console.error("      > Failed to save:", await saveRes.text());
+          if (saveRes.ok) {
+            console.log("      > Success!");
+          } else {
+            console.error("      > Failed to save:", await saveRes.text());
+          }
+        } catch (fetchError: any) {
+          if (fetchError.cause && fetchError.cause.code === 'ECONNREFUSED') {
+            console.error("      > ! Error connecting to API. Make sure Astro is running on port 4321 (npm run dev).");
+          } else {
+            console.error("      > ! Error saving:", fetchError.message);
+          }
         }
 
       } catch (error) {
