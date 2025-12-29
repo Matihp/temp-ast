@@ -19,11 +19,17 @@ export async function fetchHtml(url: string): Promise<string> {
   $('header').remove();
   $('footer').remove();
   $('nav').remove();
+  $('iframe').remove();
+  $('noscript').remove();
+  $('aside').remove();
+  $('.menu').remove();
+  $('.sidebar').remove();
+  $('.popup').remove();
 
   // Return the cleaned body text/structure or a portion of it.
   // For AI, passing the 'main' content is usually best.
   // We'll try to grab a reasonable container or just the body text.
-  const bodyContent = $('body').text().replace(/\s+/g, ' ').trim().slice(0, 15000); // Limit length for context window
+  const bodyContent = $('body').text().replace(/\s+/g, ' ').trim().slice(0, 10000); // Limit length for context window
 
   return bodyContent;
 }

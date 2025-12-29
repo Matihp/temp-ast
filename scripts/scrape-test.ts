@@ -9,7 +9,7 @@ const CATEGORY_URLS = [
 ];
 
 const API_ENDPOINT = 'http://localhost:4321/api/products';
-const MAX_PRODUCTS_PER_CATEGORY = 5; // Limit for testing
+const MAX_PRODUCTS_PER_CATEGORY = 50; // Increased limit to process all findings
 
 async function run() {
   console.log("Starting scraping job (Full Cycle)...");
