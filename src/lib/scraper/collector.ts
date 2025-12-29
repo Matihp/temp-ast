@@ -2,24 +2,20 @@ import * as cheerio from 'cheerio';
 
 interface SiteStrategy {
   domain: string;
-  productLinkSelector?: string;
-  productLinkPattern?: RegExp;
+  apiPattern?: (url: URL) => string;
 }
 
 const STRATEGIES: SiteStrategy[] = [
   {
     domain: 'sporting.com.ar',
-    // Sporting uses standard VTEX structure: https://www.sporting.com.ar/NAME/p
-    // We want to avoid listing pages that have parameters like ?initialMap or searchState
-    productLinkPattern: /\/p($|\?)/i,
-    // Selector should be specific if possible, but "a" with filtering is safer than broad selector
-    productLinkSelector: undefined
+    // Transform category URL to VTEX Search API URL
+    // URL: https://www.sporting.com.ar/sporting/indumentaria
+    // API: https://www.sporting.com.ar/api/catalog_system/pub/products/search/sporting/indumentaria
+    apiPattern: (url: URL) => `${url.origin}/api/catalog_system/pub/products/search${url.pathname}?_from=0&_to=49`
   },
   {
     domain: 'sportline.com.ar',
-    // Examples: https://www.sportline.com.ar/remera-.../p
-    productLinkPattern: /\/p($|\?)/i,
-    productLinkSelector: undefined
+    apiPattern: (url: URL) => `${url.origin}/api/catalog_system/pub/products/search${url.pathname}?_from=0&_to=49`
   }
 ];
 
@@ -34,91 +30,79 @@ function getStrategy(url: string): SiteStrategy | undefined {
 
 export async function collectProductUrls(categoryUrl: string): Promise<string[]> {
   try {
-    console.log(`  [Collector] Fetching category page: ${categoryUrl}`);
+    console.log(`  [Collector] Analyzing category: ${categoryUrl}`);
+    const urlObj = new URL(categoryUrl);
+    const strategy = getStrategy(categoryUrl);
 
-    // Add real headers to avoid blocking and ensure content delivery
+    // Strategy 1: VTEX API (Preferred for known sites)
+    if (strategy && strategy.apiPattern) {
+      const apiUrl = strategy.apiPattern(urlObj);
+      console.log(`  [Collector] Detected VTEX site. Using API: ${apiUrl}`);
+      try {
+        const res = await fetch(apiUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+        });
+
+        if (res.ok || res.status === 206) {
+          const json = await res.json();
+          if (Array.isArray(json)) {
+            console.log(`  [Collector] API returned ${json.length} products.`);
+            // Extract 'link' property
+            const links = json.map((item: any) => item.link).filter((l: string) => typeof l === 'string');
+            return links;
+          }
+        } else {
+          console.warn(`  [Collector] API fetch failed: ${res.status}. Falling back to HTML.`);
+        }
+      } catch (e) {
+        console.warn(`  [Collector] API strategy error:`, e);
+      }
+    }
+
+    // Strategy 2: HTML Scraping (Fallback)
+    console.log(`  [Collector] Fetching HTML fallback: ${categoryUrl}`);
     const res = await fetch(categoryUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'es-419,es;q=0.9,en;q=0.8',
-        'Referer': 'https://www.google.com/'
       },
     });
 
     if (!res.ok) throw new Error(`Failed to fetch ${categoryUrl}: ${res.status}`);
     const html = await res.text();
     const $ = cheerio.load(html);
-
-    const strategy = getStrategy(categoryUrl);
     const productUrls = new Set<string>();
-    const baseUrl = new URL(categoryUrl).origin;
+    const baseUrl = urlObj.origin;
 
-    // Strategy 1: JSON-LD (ItemList) - Very reliable for e-commerce
+    // JSON-LD Check
     $('script[type="application/ld+json"]').each((_, el) => {
       try {
         const json = JSON.parse($(el).html() || '{}');
-        // Handle direct ItemList or @graph array
         const items = Array.isArray(json) ? json : [json];
-
         items.forEach(item => {
           if (item['@type'] === 'ItemList' && Array.isArray(item.itemListElement)) {
             item.itemListElement.forEach((element: any) => {
-              const url = element.url || element.item; // standard property is url, sometimes item string
-              if (typeof url === 'string') {
-                productUrls.add(resolveUrl(url, baseUrl));
-              }
+              const url = element.url || element.item;
+              if (typeof url === 'string') productUrls.add(resolveUrl(url, baseUrl));
             });
           }
         });
-      } catch (e) {
-        // ignore parse errors
+      } catch (e) {}
+    });
+
+    // Heuristic Fallback
+    $('a').each((_, el) => {
+      const href = $(el).attr('href');
+      if (href) {
+        // Generic pattern for product pages (e.g., /p, /product, /item) avoiding common noise
+        if (/\/p(\/|$|\?)/i.test(href) && !href.includes('initialMap') && !href.includes('searchState')) {
+           productUrls.add(resolveUrl(href, baseUrl));
+        }
       }
     });
 
-    if (productUrls.size > 0) {
-      console.log(`  [Collector] Found ${productUrls.size} URLs via JSON-LD.`);
-    }
-
-    // Strategy 2: Regex / Selectors (Fallback or Supplement)
-    if (productUrls.size === 0) {
-      if (strategy) {
-        // console.log(`  [Collector] Using strategy for ${strategy.domain}`);
-        if (strategy.productLinkSelector) {
-          $(strategy.productLinkSelector).each((_, el) => {
-            const href = $(el).attr('href');
-            if (href) productUrls.add(resolveUrl(href, baseUrl));
-          });
-        }
-
-        if (strategy.productLinkPattern) {
-          $('a').each((_, el) => {
-            const href = $(el).attr('href');
-            // Check if href matches pattern AND is NOT a query string mess if possible
-            if (href && strategy.productLinkPattern!.test(href)) {
-               productUrls.add(resolveUrl(href, baseUrl));
-            }
-          });
-        }
-      } else {
-        // Generic Fallback
-        $('a').each((_, el) => {
-          const href = $(el).attr('href');
-          if (href) {
-            // Common e-commerce patterns
-            if (/\/p\/|product\/|\/p$|item\//i.test(href)) {
-               productUrls.add(resolveUrl(href, baseUrl));
-            }
-          }
-        });
-      }
-    }
-
-    const results = Array.from(productUrls)
-      .filter(u => u.startsWith('http'))
-      .filter(u => !u.includes('initialMap=') && !u.includes('searchState=') && !u.includes('map=')); // Global filter for garbage
-
-    console.log(`  [Collector] Final: ${results.length} unique product URLs.`);
+    const results = Array.from(productUrls).filter(u => u.startsWith('http'));
+    console.log(`  [Collector] Found ${results.length} URLs via HTML scraping.`);
     return results;
 
   } catch (error) {
