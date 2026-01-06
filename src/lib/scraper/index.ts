@@ -11,7 +11,7 @@ export async function fetchHtml(url: string): Promise<string> {
   }
   const html = await res.text();
 
-  // Basic cleanup to reduce token usage
+  // Basic cleanup to reduce token usage for AI, but keep structure for selectors
   const $ = cheerio.load(html);
   $('script').remove();
   $('style').remove();
@@ -26,12 +26,9 @@ export async function fetchHtml(url: string): Promise<string> {
   $('.sidebar').remove();
   $('.popup').remove();
 
-  // Return the cleaned body text/structure or a portion of it.
-  // For AI, passing the 'main' content is usually best.
-  // We'll try to grab a reasonable container or just the body text.
-  const bodyContent = $('body').text().replace(/\s+/g, ' ').trim().slice(0, 10000); // Limit length for context window
-
-  return bodyContent;
+  // For AI analysis, we need a string representation.
+  // We return the cleaned HTML string.
+  return $.html();
 }
 
 export interface ExtractedProduct {
@@ -45,24 +42,63 @@ export interface ExtractedProduct {
   imageUrl?: string;
 }
 
-export async function extractDataWithAI(htmlContent: string, model: string = 'ministral-3'): Promise<ExtractedProduct> {
+export interface ProductSelectors {
+  name: string;
+  brand?: string;
+  price: string;
+  size?: string;
+  color?: string;
+  imageUrl?: string;
+}
+
+export function extractWithSelectors(html: string, selectors: ProductSelectors): ExtractedProduct {
+  const $ = cheerio.load(html);
+
+  const getText = (sel?: string) => sel ? $(sel).first().text().trim() : undefined;
+  const getAttr = (sel?: string, attr: string = 'src') => sel ? $(sel).first().attr(attr) : undefined;
+
+  const rawPrice = getText(selectors.price) || '0';
+  // Cleanup price string (remove $, dots/commas handling)
+  // Assuming format like $ 10.000 or 10.000,00
+  const priceClean = rawPrice.replace(/[^0-9,.]/g, '');
+  const price = parseFloat(priceClean.replace(',', '.')); // Simple parse, might need refinement per locale
+
+  return {
+    name: getText(selectors.name) || 'Unknown',
+    brand: getText(selectors.brand),
+    price: isNaN(price) ? 0 : price,
+    size: getText(selectors.size),
+    color: getText(selectors.color),
+    imageUrl: getAttr(selectors.imageUrl, 'src') || getAttr(selectors.imageUrl, 'href'),
+    type: 'unknown',
+    gender: 'unknown'
+  };
+}
+
+export async function generateSelectorsWithAI(htmlContent: string, model: string = 'ministral-3'): Promise<ProductSelectors> {
+  // Limit context for AI to avoid token overflow, but keep enough structure
+  // Cheerio .html() can be huge. Let's slice body.
+  const slicedHtml = htmlContent.replace(/\s+/g, ' ').trim().slice(0, 15000);
+
   const prompt = `
-    You are a helpful assistant that extracts structured product data from raw HTML text.
-    Extract the following fields from the text below:
-    - name (string): The full name of the product.
-    - brand (string): The brand of the product (e.g., Nike, Adidas).
-    - price (number): The current price of the product (numeric only, remove currency symbols).
-    - size (string): The available sizes or the specific size if mentioned (e.g., "M", "42", "S-XL").
-    - color (string): The color of the product.
-    - type (string): The type of clothing (e.g., remera, pantalon, zapatillas, buzo).
-    - gender (string): The target gender (e.g., hombre, mujer, unisex, niño).
-    - imageUrl (string): Main product image URL if found (or null).
+    Analyze the following HTML snippet of a product page.
+    Identify the CSS Selectors (classes, ids, or tags) that contain the following information:
+    - name: The product title.
+    - brand: The brand name.
+    - price: The product price.
+    - size: The container of available sizes or the selected size.
+    - color: The product color name.
+    - imageUrl: The main product image element (img tag).
 
-    Return ONLY a JSON object. Do not include markdown formatting like \`\`\`json.
+    Return ONLY a JSON object mapping keys to CSS selectors strings.
+    Example: { "name": "h1.title", "price": ".vtex-price", "imageUrl": "img.main-image" }
 
-    Text to analyze:
-    ${htmlContent}
+    HTML:
+    ${slicedHtml}
   `;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 min timeout
 
   try {
     const res = await fetch('http://localhost:11434/api/generate', {
@@ -72,26 +108,61 @@ export async function extractDataWithAI(htmlContent: string, model: string = 'mi
         model: model,
         prompt: prompt,
         stream: false,
-        format: "json" // Force JSON mode if supported by the model version
+        format: "json"
       }),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
 
-    if (!res.ok) {
-      throw new Error(`Ollama API error: ${res.status}`);
-    }
+    if (!res.ok) throw new Error(`Ollama API error: ${res.status}`);
 
     const data = await res.json() as { response: string };
-    const responseText = data.response;
-
-    try {
-      // Clean up potential markdown code blocks if the model ignores the instruction
-      const jsonStr = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-      return JSON.parse(jsonStr) as ExtractedProduct;
-    } catch (e) {
-      console.error("Failed to parse JSON from AI response:", responseText);
-      throw new Error("Invalid JSON response from AI");
-    }
+    const jsonStr = data.response.replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(jsonStr) as ProductSelectors;
   } catch (error) {
+    clearTimeout(timeoutId);
+    console.error("Error generating selectors with AI:", error);
+    throw error;
+  }
+}
+
+// Fallback function
+export async function extractDataWithAI(htmlContent: string, model: string = 'ministral-3'): Promise<ExtractedProduct> {
+  const slicedHtml = htmlContent.replace(/\s+/g, ' ').trim().slice(0, 10000);
+
+  const prompt = `
+    Extract structured product data from this HTML.
+    Fields: name, brand, price (number), size, color, type, gender, imageUrl.
+    Return JSON only.
+
+    HTML:
+    ${slicedHtml}
+  `;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 600000);
+
+  try {
+    const res = await fetch('http://localhost:11434/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: model,
+        prompt: prompt,
+        stream: false,
+        format: "json"
+      }),
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) throw new Error(`Ollama API error: ${res.status}`);
+
+    const data = await res.json() as { response: string };
+    const jsonStr = data.response.replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(jsonStr) as ExtractedProduct;
+  } catch (error) {
+    clearTimeout(timeoutId);
     console.error("Error calling AI:", error);
     throw error;
   }

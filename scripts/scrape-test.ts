@@ -1,4 +1,4 @@
-import { fetchHtml, extractDataWithAI } from '../src/lib/scraper/index';
+import { fetchHtml, extractDataWithAI, generateSelectorsWithAI, extractWithSelectors, type ProductSelectors } from '../src/lib/scraper/index';
 import { collectProductUrls } from '../src/lib/scraper/collector';
 
 const CATEGORY_URLS = [
@@ -9,15 +9,17 @@ const CATEGORY_URLS = [
 ];
 
 const API_ENDPOINT = 'http://localhost:4321/api/products';
-const MAX_PRODUCTS_PER_CATEGORY = 50; // Increased limit to process all findings
+const MAX_PRODUCTS_PER_CATEGORY = 50;
+
+// Cache for selectors per domain
+const selectorCache = new Map<string, ProductSelectors>();
 
 async function run() {
-  console.log("Starting scraping job (Full Cycle)...");
+  console.log("Starting scraping job (Hybrid AI/Selector Mode)...");
 
   for (const catUrl of CATEGORY_URLS) {
     console.log(`\n=== Processing Category: ${catUrl} ===`);
 
-    // 1. Collect URLs
     const productUrls = await collectProductUrls(catUrl);
 
     if (productUrls.length === 0) {
@@ -25,20 +27,45 @@ async function run() {
       continue;
     }
 
-    // Limit the number of products to process
     const toProcess = productUrls.slice(0, MAX_PRODUCTS_PER_CATEGORY);
     console.log(`  > Will process ${toProcess.length} products (out of ${productUrls.length} found).`);
 
-    for (const url of toProcess) {
-      console.log(`\n  --- Product: ${url} ---`);
+    const domain = new URL(catUrl).hostname;
+    let currentSelectors = selectorCache.get(domain);
+
+    for (const [index, url] of toProcess.entries()) {
+      console.log(`\n  --- Product ${index + 1}/${toProcess.length}: ${url} ---`);
       try {
-        // 2. Fetch HTML
         console.log("    - Fetching HTML...");
         const html = await fetchHtml(url);
 
-        // 3. Extract with AI
-        console.log("    - Extracting data with AI (Ollama)...");
-        const productData = await extractDataWithAI(html, 'ministral-3');
+        let productData;
+
+        // Hybrid Strategy: Use cached selectors if available
+        if (currentSelectors) {
+          console.log("    - Extracting with cached selectors...");
+          productData = extractWithSelectors(html, currentSelectors);
+
+          // Validation: If extraction failed badly (e.g. no name), retry with AI and update selectors
+          if (!productData.name || productData.name === 'Unknown' || !productData.price) {
+             console.warn("    ! Selector extraction seems invalid (missing name/price). Retrying with AI...");
+             currentSelectors = undefined; // Force AI check for this product
+          }
+        }
+
+        if (!currentSelectors) {
+          console.log("    - Analyzing structure with AI to generate selectors...");
+          try {
+            currentSelectors = await generateSelectorsWithAI(html, 'ministral-3');
+            console.log("      > Generated selectors:", currentSelectors);
+            selectorCache.set(domain, currentSelectors);
+            productData = extractWithSelectors(html, currentSelectors);
+          } catch (e) {
+            console.error("      ! AI Selector generation failed. Fallback to direct extraction.");
+            productData = await extractDataWithAI(html, 'ministral-3');
+          }
+        }
+
         console.log("      > Extracted:", productData);
 
         // 4. Save to DB
