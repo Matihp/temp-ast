@@ -11,6 +11,9 @@ const CATEGORY_URLS = [
 const API_ENDPOINT = 'http://localhost:4321/api/products';
 const MAX_PRODUCTS_PER_CATEGORY = 50;
 
+// Helper for rate limiting
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 // Cache for selectors per domain
 const selectorCache = new Map<string, ProductSelectors>();
 
@@ -34,6 +37,9 @@ async function run() {
     let currentSelectors = selectorCache.get(domain);
 
     for (const [index, url] of toProcess.entries()) {
+      // Rate limiting: sleep 2s between requests to avoid ConnectTimeoutError
+      if (index > 0) await sleep(2000);
+
       console.log(`\n  --- Product ${index + 1}/${toProcess.length}: ${url} ---`);
       try {
         console.log("    - Fetching HTML...");

@@ -135,23 +135,35 @@ export async function generateSelectorsWithAI(htmlContent: string, model: string
 
   const prompt = `
     Analyze the following HTML snippet of a product page.
-    Identify the CSS Selectors (classes, ids, or tags) that contain the following information:
-    - name: The product title.
-    - brand: The brand name.
-    - price: The product price.
-    - size: The container of available sizes or the selected size.
-    - color: The product color name.
-    - imageUrl: The main product image element (img tag).
+    Your task is to identify CSS SELECTORS (classes, ids, or tags) for specific product details.
+
+    DO NOT extract the actual data values (like "$12.999" or "Nike").
+    DO NOT return the text content.
+    RETURN ONLY THE CSS SELECTORS strings.
+
+    Fields to find selectors for:
+    - name: Selector for the product title.
+    - brand: Selector for the brand name.
+    - price: Selector for the product price.
+    - size: Selector for the container of available sizes.
+    - color: Selector for the product color name.
+    - imageUrl: Selector for the main product image (img tag).
 
     Return ONLY a JSON object mapping keys to CSS selectors strings.
-    Example: { "name": "h1.title", "price": ".vtex-price", "imageUrl": "img.main-image" }
+
+    CORRECT Example:
+    { "name": "h1.title", "price": ".vtex-price", "imageUrl": "img.main-image" }
+
+    INCORRECT Example (DO NOT DO THIS):
+    { "name": "Super Shoes 2000", "price": "$ 50.00" }
 
     HTML:
     ${slicedHtml}
   `;
 
+  // 120s timeout (2 minutes) to give local LLM enough time
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 min timeout
+  const timeoutId = setTimeout(() => controller.abort(), 120000);
 
   try {
     const res = await fetch('http://localhost:11434/api/generate', {
@@ -161,7 +173,10 @@ export async function generateSelectorsWithAI(htmlContent: string, model: string
         model: model,
         prompt: prompt,
         stream: false,
-        format: "json"
+        format: "json",
+        options: {
+             num_ctx: 4096 // Ensure sufficient context window
+        }
       }),
       signal: controller.signal
     });
@@ -172,9 +187,16 @@ export async function generateSelectorsWithAI(htmlContent: string, model: string
     const data = await res.json() as { response: string };
     const selectors = parseJsonFromAI<ProductSelectors>(data.response);
 
-    // Validate selectors
-    if (!selectors.name && !selectors.price) {
-      throw new Error("AI returned empty selectors for critical fields");
+    // Validate selectors (Must look like selectors, not values)
+    const looksLikeSelector = (s: string) => s && (s.startsWith('.') || s.startsWith('#') || s.match(/^[a-z0-9_-]+(\.[a-z0-9_-]+)*$/i));
+
+    if (!selectors.name || !looksLikeSelector(selectors.name)) {
+         console.warn("AI returned invalid selector for 'name':", selectors.name);
+         throw new Error("Invalid selector format for 'name'");
+    }
+    if (!selectors.price || !looksLikeSelector(selectors.price)) {
+         console.warn("AI returned invalid selector for 'price':", selectors.price);
+         throw new Error("Invalid selector format for 'price'");
     }
 
     return selectors;
@@ -201,8 +223,9 @@ export async function extractDataWithAI(htmlContent: string, model: string = 'mi
     ${slicedHtml}
   `;
 
+  // 120s timeout (2 minutes)
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 600000);
+  const timeoutId = setTimeout(() => controller.abort(), 120000);
 
   try {
     const res = await fetch('http://localhost:11434/api/generate', {
@@ -212,7 +235,10 @@ export async function extractDataWithAI(htmlContent: string, model: string = 'mi
         model: model,
         prompt: prompt,
         stream: false,
-        format: "json"
+        format: "json",
+         options: {
+             num_ctx: 4096
+        }
       }),
       signal: controller.signal
     });
