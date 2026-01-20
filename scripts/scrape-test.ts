@@ -42,6 +42,8 @@ async function run() {
         if (staticSel) {
             console.log(`  [INFO] Loaded static selectors for ${domain}`);
             selectorCache.set(domain, staticSel);
+        } else {
+            console.log(`  [DEBUG] No static selectors found for ${domain}. Available keys in STATIC_SELECTORS: sporting.com.ar, sportline.com.ar`);
         }
     }
 

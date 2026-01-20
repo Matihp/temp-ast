@@ -30,11 +30,14 @@ export const STATIC_SELECTORS: Record<string, ProductSelectors> = {
 
 export function getStaticSelectors(url: string): ProductSelectors | undefined {
   try {
-    const hostname = new URL(url).hostname.replace('www.', '');
+    // Normalize hostname: remove www. and handle subdomains
+    const hostname = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
 
-    // 1. Exact match
-    if (STATIC_SELECTORS[hostname]) {
-      return STATIC_SELECTORS[hostname];
+    // 1. Exact match or Contains match
+    // Check if any key in STATIC_SELECTORS is contained within the hostname
+    const matchedKey = Object.keys(STATIC_SELECTORS).find(key => hostname.includes(key));
+    if (matchedKey) {
+      return STATIC_SELECTORS[matchedKey];
     }
 
     // 2. Platform detection (Basic heuristic for VTEX)
