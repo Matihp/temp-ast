@@ -31,6 +31,58 @@ export async function fetchHtml(url: string): Promise<string> {
   return $.html();
 }
 
+/**
+ * Aggressively cleans HTML for LLM consumption.
+ * Removes all attributes except class, id, src, href to save tokens.
+ */
+export function cleanHtmlForLLM(html: string): string {
+  const $ = cheerio.load(html);
+
+  // Remove scripts, styles, and other heavy elements
+  $('script').remove();
+  $('style').remove();
+  $('svg').remove();
+  $('noscript').remove();
+  $('iframe').remove();
+
+  // Remove comments
+  $.root().find('*').contents().filter((_, el) => el.type === 'comment').remove();
+
+  $('*').each((_, el) => {
+    // Keep only specific attributes
+    const allowedAttrs = ['class', 'id', 'src', 'href'];
+    const attribs = el.attribs;
+    if (attribs) {
+        Object.keys(attribs).forEach(attr => {
+          if (!allowedAttrs.includes(attr)) {
+            $(el).removeAttr(attr);
+          }
+        });
+    }
+  });
+
+  // Collapse whitespace
+  return $.html().replace(/\s+/g, ' ').trim();
+}
+
+function parseJsonFromAI<T>(responseText: string): T {
+    const jsonStart = responseText.indexOf('{');
+    const jsonEnd = responseText.lastIndexOf('}');
+
+    if (jsonStart === -1 || jsonEnd === -1) {
+        throw new Error(`Invalid JSON format in AI response: ${responseText.slice(0, 100)}...`);
+    }
+
+    const jsonStr = responseText.slice(jsonStart, jsonEnd + 1);
+
+    try {
+        return JSON.parse(jsonStr) as T;
+    } catch (parseError) {
+        console.error("JSON Parse Error. Raw string:", jsonStr);
+        throw parseError;
+    }
+}
+
 export interface ExtractedProduct {
   name: string;
   brand?: string;
@@ -76,8 +128,10 @@ export function extractWithSelectors(html: string, selectors: ProductSelectors):
 }
 
 export async function generateSelectorsWithAI(htmlContent: string, model: string = 'ministral-3'): Promise<ProductSelectors> {
-  // Increased limit for structure analysis
-  const slicedHtml = htmlContent.replace(/\s+/g, ' ').trim().slice(0, 50000);
+  // Optimize HTML for LLM
+  const cleanedHtml = cleanHtmlForLLM(htmlContent);
+  // Reduced limit to prevents timeouts (20k chars is usually enough for structure)
+  const slicedHtml = cleanedHtml.slice(0, 20000);
 
   const prompt = `
     Analyze the following HTML snippet of a product page.
@@ -116,8 +170,7 @@ export async function generateSelectorsWithAI(htmlContent: string, model: string
     if (!res.ok) throw new Error(`Ollama API error: ${res.status}`);
 
     const data = await res.json() as { response: string };
-    const jsonStr = data.response.replace(/```json/g, '').replace(/```/g, '').trim();
-    const selectors = JSON.parse(jsonStr) as ProductSelectors;
+    const selectors = parseJsonFromAI<ProductSelectors>(data.response);
 
     // Validate selectors
     if (!selectors.name && !selectors.price) {
@@ -134,8 +187,10 @@ export async function generateSelectorsWithAI(htmlContent: string, model: string
 
 // Fallback function
 export async function extractDataWithAI(htmlContent: string, model: string = 'ministral-3'): Promise<ExtractedProduct> {
+  // Optimize HTML for LLM
+  const cleanedHtml = cleanHtmlForLLM(htmlContent);
   // Moderate limit for direct extraction
-  const slicedHtml = htmlContent.replace(/\s+/g, ' ').trim().slice(0, 25000);
+  const slicedHtml = cleanedHtml.slice(0, 20000);
 
   const prompt = `
     Extract structured product data from this HTML.
@@ -166,8 +221,8 @@ export async function extractDataWithAI(htmlContent: string, model: string = 'mi
     if (!res.ok) throw new Error(`Ollama API error: ${res.status}`);
 
     const data = await res.json() as { response: string };
-    const jsonStr = data.response.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(jsonStr) as ExtractedProduct;
+    return parseJsonFromAI<ExtractedProduct>(data.response);
+
   } catch (error) {
     clearTimeout(timeoutId);
     console.error("Error calling AI:", error);
