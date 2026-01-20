@@ -1,5 +1,6 @@
 import { fetchHtml, extractDataWithAI, generateSelectorsWithAI, extractWithSelectors, type ProductSelectors } from '../src/lib/scraper/index';
 import { collectProductUrls } from '../src/lib/scraper/collector';
+import { getStaticSelectors } from '../src/lib/scraper/static-selectors';
 
 const CATEGORY_URLS = [
   "https://www.sporting.com.ar/sporting/indumentaria",
@@ -34,6 +35,16 @@ async function run() {
     console.log(`  > Will process ${toProcess.length} products (out of ${productUrls.length} found).`);
 
     const domain = new URL(catUrl).hostname;
+
+    // 1. Try to load static selectors first
+    if (!selectorCache.has(domain)) {
+        const staticSel = getStaticSelectors(catUrl);
+        if (staticSel) {
+            console.log(`  [INFO] Loaded static selectors for ${domain}`);
+            selectorCache.set(domain, staticSel);
+        }
+    }
+
     let currentSelectors = selectorCache.get(domain);
 
     for (const [index, url] of toProcess.entries()) {
@@ -55,7 +66,9 @@ async function run() {
           // Validation: If extraction failed badly (e.g. no name), retry with AI and update selectors
           if (!productData.name || productData.name === 'Unknown' || !productData.price) {
              console.warn("    ! Selector extraction seems invalid (missing name/price). Retrying with AI...");
-             currentSelectors = undefined; // Force AI check for this product
+             // Only clear selectors if they were NOT static (we trust static ones, maybe html changed?)
+             // Actually, if static selectors fail, we should try AI.
+             currentSelectors = undefined;
           }
         }
 

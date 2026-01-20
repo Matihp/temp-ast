@@ -211,13 +211,17 @@ export async function generateSelectorsWithAI(htmlContent: string, model: string
 export async function extractDataWithAI(htmlContent: string, model: string = 'ministral-3'): Promise<ExtractedProduct> {
   // Optimize HTML for LLM
   const cleanedHtml = cleanHtmlForLLM(htmlContent);
-  // Moderate limit for direct extraction
-  const slicedHtml = cleanedHtml.slice(0, 20000);
+  // Increased limit slightly to avoid "incomplete snippet" errors
+  const slicedHtml = cleanedHtml.slice(0, 30000);
 
   const prompt = `
     Extract structured product data from this HTML.
-    Fields: name, brand, price (number), size, color, type, gender, imageUrl.
-    Return JSON only.
+
+    INSTRUCTIONS:
+    - Return ONLY valid JSON.
+    - Do NOT include any introductory text, markdown code blocks, or explanations.
+    - If a field is missing, set it to null or empty string.
+    - Fields: name, brand, price (number), size, color, type, gender, imageUrl.
 
     HTML:
     ${slicedHtml}
