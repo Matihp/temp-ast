@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
 import { extractFromMetadata } from './extractor';
+import { enrichProductData } from './enricher';
 
 export async function fetchHtml(url: string): Promise<string> {
   const res = await fetch(url, {
@@ -90,30 +91,37 @@ export interface ProductSelectors {
 
 // New unified extraction entry point
 export function extractDataWithHybrid(html: string, selectors?: ProductSelectors): ExtractedProduct {
+    let result: ExtractedProduct | undefined;
+
     // 1. First priority: Metadata/JSON-LD (Fastest and most reliable for CSR sites like VTEX)
     const metaData = extractFromMetadata(html);
-    if (metaData && metaData.name && metaData.price > 0) {
-        return metaData;
-    }
-
-    // 2. Second priority: CSS Selectors (if provided)
-    if (selectors) {
-        const selectorData = extractWithSelectors(html, selectors);
-        // If selectors found good data, return it
-        if (selectorData.name && selectorData.name !== 'Unknown' && selectorData.price > 0) {
-            // Merge with metadata if we found partial info (e.g. image from meta)
-            return { ...metaData, ...selectorData };
+    if (metaData && metaData.name && metaData.price && metaData.price > 0) {
+        result = metaData as ExtractedProduct;
+    } else {
+        // 2. Second priority: CSS Selectors (if provided)
+        if (selectors) {
+            const selectorData = extractWithSelectors(html, selectors);
+            // If selectors found good data, return it
+            if (selectorData.name && selectorData.name !== 'Unknown' && selectorData.price && selectorData.price > 0) {
+                // Merge with metadata if we found partial info (e.g. image from meta)
+                result = { ...metaData, ...selectorData } as ExtractedProduct;
+            }
         }
     }
 
     // 3. Fallback: Return whatever metadata we found (even if incomplete) or empty
     // The calling script will decide whether to call AI based on this result.
-    return metaData || {
-        name: 'Unknown',
-        price: 0,
-        type: 'unknown',
-        gender: 'unknown'
-    };
+    if (!result) {
+        result = (metaData || {
+            name: 'Unknown',
+            price: 0,
+            type: 'unknown',
+            gender: 'unknown'
+        }) as ExtractedProduct;
+    }
+
+    // 4. Enrich data using heuristics (Gender, Type, Color)
+    return enrichProductData(result);
 }
 
 export function extractWithSelectors(html: string, selectors: ProductSelectors): ExtractedProduct {
@@ -264,7 +272,10 @@ export async function extractDataWithAI(htmlContent: string, model: string = 'mi
     if (!res.ok) throw new Error(`Ollama API error: ${res.status}`);
 
     const data = await res.json() as { response: string };
-    return parseJsonFromAI<ExtractedProduct>(data.response);
+    const result = parseJsonFromAI<ExtractedProduct>(data.response);
+
+    // Also enrich AI results just in case
+    return enrichProductData(result);
 
   } catch (error) {
     clearTimeout(timeoutId);
