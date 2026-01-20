@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio';
+import { extractFromMetadata } from './extractor';
 
 export async function fetchHtml(url: string): Promise<string> {
   const res = await fetch(url, {
@@ -11,24 +12,8 @@ export async function fetchHtml(url: string): Promise<string> {
   }
   const html = await res.text();
 
-  // Basic cleanup to reduce token usage for AI, but keep structure for selectors
-  const $ = cheerio.load(html);
-  $('script').remove();
-  $('style').remove();
-  $('svg').remove();
-  $('header').remove();
-  $('footer').remove();
-  $('nav').remove();
-  $('iframe').remove();
-  $('noscript').remove();
-  $('aside').remove();
-  $('.menu').remove();
-  $('.sidebar').remove();
-  $('.popup').remove();
-
-  // For AI analysis, we need a string representation.
-  // We return the cleaned HTML string.
-  return $.html();
+  // We return the raw HTML because metadata extraction needs scripts (like application/ld+json)
+  return html;
 }
 
 /**
@@ -101,6 +86,34 @@ export interface ProductSelectors {
   size?: string;
   color?: string;
   imageUrl?: string;
+}
+
+// New unified extraction entry point
+export function extractDataWithHybrid(html: string, selectors?: ProductSelectors): ExtractedProduct {
+    // 1. First priority: Metadata/JSON-LD (Fastest and most reliable for CSR sites like VTEX)
+    const metaData = extractFromMetadata(html);
+    if (metaData && metaData.name && metaData.price > 0) {
+        return metaData;
+    }
+
+    // 2. Second priority: CSS Selectors (if provided)
+    if (selectors) {
+        const selectorData = extractWithSelectors(html, selectors);
+        // If selectors found good data, return it
+        if (selectorData.name && selectorData.name !== 'Unknown' && selectorData.price > 0) {
+            // Merge with metadata if we found partial info (e.g. image from meta)
+            return { ...metaData, ...selectorData };
+        }
+    }
+
+    // 3. Fallback: Return whatever metadata we found (even if incomplete) or empty
+    // The calling script will decide whether to call AI based on this result.
+    return metaData || {
+        name: 'Unknown',
+        price: 0,
+        type: 'unknown',
+        gender: 'unknown'
+    };
 }
 
 export function extractWithSelectors(html: string, selectors: ProductSelectors): ExtractedProduct {

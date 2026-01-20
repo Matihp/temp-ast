@@ -1,4 +1,4 @@
-import { fetchHtml, extractDataWithAI, generateSelectorsWithAI, extractWithSelectors, type ProductSelectors } from '../src/lib/scraper/index';
+import { fetchHtml, extractDataWithAI, generateSelectorsWithAI, extractWithSelectors, extractDataWithHybrid, type ProductSelectors } from '../src/lib/scraper/index';
 import { collectProductUrls } from '../src/lib/scraper/collector';
 import { getStaticSelectors } from '../src/lib/scraper/static-selectors';
 
@@ -60,33 +60,33 @@ async function run() {
 
         let productData;
 
-        // Hybrid Strategy: Use cached selectors if available
-        if (currentSelectors) {
-          console.log("    - Extracting with cached selectors...");
-          productData = extractWithSelectors(html, currentSelectors);
+        // Hybrid Strategy:
+        // 1. Try Metadata + Selectors (Fastest)
+        productData = extractDataWithHybrid(html, currentSelectors);
 
-          // Validation: If extraction failed badly (e.g. no name), retry with AI and update selectors
-          if (!productData.name || productData.name === 'Unknown' || !productData.price) {
-             console.warn("    ! Selector extraction seems invalid (missing name/price). Retrying with AI...");
-             // Only clear selectors if they were NOT static (we trust static ones, maybe html changed?)
-             // Actually, if static selectors fail, we should try AI.
-             currentSelectors = undefined;
-          }
-        }
+        // 2. Fallback to AI if Hybrid failed to find critical data
+        if (!productData.name || productData.name === 'Unknown' || !productData.price) {
+             console.warn("    ! Hybrid extraction failed (missing name/price). Fallback to AI...");
 
-        if (!currentSelectors) {
-          console.log("    - Analyzing structure with AI to generate selectors...");
-          try {
-            currentSelectors = await generateSelectorsWithAI(html, 'ministral-3');
-            console.log("      > Generated selectors:", currentSelectors);
-            selectorCache.set(domain, currentSelectors);
-            productData = extractWithSelectors(html, currentSelectors);
-          } catch (e: any) {
-            console.error(`      ! AI Selector generation failed/invalid (${e.message}). Fallback to direct extraction.`);
-            // Do NOT cache selectors if they failed validation
-            currentSelectors = undefined;
-            productData = await extractDataWithAI(html, 'ministral-3');
-          }
+             try {
+                // Only try to generate selectors if we don't have them yet
+                if (!currentSelectors) {
+                    console.log("    - Analyzing structure with AI to generate selectors...");
+                    currentSelectors = await generateSelectorsWithAI(html, 'ministral-3');
+                    console.log("      > Generated selectors:", currentSelectors);
+                    selectorCache.set(domain, currentSelectors);
+                    // Retry hybrid with new selectors
+                    productData = extractDataWithHybrid(html, currentSelectors);
+                }
+
+                // If still failing, force direct extraction
+                if (!productData.name || productData.name === 'Unknown') {
+                    throw new Error("Selectors failed");
+                }
+             } catch (e: any) {
+                console.error(`      ! AI Selector generation failed/invalid (${e.message}). Fallback to direct AI extraction.`);
+                productData = await extractDataWithAI(html, 'ministral-3');
+             }
         }
 
         console.log("      > Extracted:", productData);
