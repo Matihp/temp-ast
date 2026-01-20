@@ -35,7 +35,50 @@ export function extractFromMetadata(html: string): ExtractedProduct | null {
     }
   });
 
-  // 2. Try OpenGraph / Meta Tags (Fallback if JSON-LD missing/incomplete)
+  // 2. Try VTEX skuJson or skuSpecifications (in scripts)
+  // This contains real stock information, sizes, and colors.
+  $('script').each((_, el) => {
+    const scriptContent = $(el).html() || '';
+
+    // Look for skuJson_0 = {...} (common in VTEX legacy)
+    // or sometimes just skuJson = {...}
+    if (scriptContent.includes('skuJson')) {
+       try {
+           // Regex to extract the JSON object
+           const match = scriptContent.match(/skuJson(?:_\d+)?\s*=\s*(\{.*?\});/s);
+           if (match && match[1]) {
+               const skuJson = JSON.parse(match[1]);
+
+               // Extract Sizes
+               // Usually dimensions are in "dimensions" key, e.g. "Talle": "M"
+               if (skuJson.skus && Array.isArray(skuJson.skus)) {
+                   const sizes = new Set<string>();
+                   skuJson.skus.forEach((sku: any) => {
+                       if (sku.available && sku.dimensions && sku.dimensions.Talle) {
+                           sizes.add(sku.dimensions.Talle);
+                       }
+                       // Sometimes it's "Talla" or just "Size"
+                       if (sku.available && sku.dimensions && sku.dimensions.Size) {
+                           sizes.add(sku.dimensions.Size);
+                       }
+                       // Or extract from SKU name if dimensions missing
+                       if (sku.available && sku.skuname) {
+                           // Attempt to find size in name (risky)
+                       }
+                   });
+                   if (sizes.size > 0) {
+                       product.size = Array.from(sizes).join('/');
+                   }
+               }
+           }
+       } catch (e) {
+           // console.warn("Failed to parse VTEX skuJson");
+       }
+    }
+  });
+
+
+  // 3. Try OpenGraph / Meta Tags (Fallback if JSON-LD missing/incomplete)
   if (!product.name) product.name = $('meta[property="og:title"]').attr('content');
   if (!product.imageUrl) product.imageUrl = $('meta[property="og:image"]').attr('content');
 
@@ -53,8 +96,8 @@ export function extractFromMetadata(html: string): ExtractedProduct | null {
         brand: product.brand,
         price: product.price || 0,
         imageUrl: product.imageUrl,
-        size: undefined, // Usually hard to get from meta
-        color: undefined,
+        size: product.size, // Now populated from VTEX scripts if found
+        color: undefined,   // Often enriched later by enricher.ts
         type: 'unknown',
         gender: 'unknown'
     };

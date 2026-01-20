@@ -1,8 +1,10 @@
 import { type ExtractedProduct } from './index';
 
 // Common clothing types in Spanish
+// Order matters! More specific types should be checked first.
 const TYPES: Record<string, RegExp> = {
-  'remera': /remera|camiseta|chomba|top/i,
+  'camiseta': /camiseta|titular|suplente|alternativa|oficial|jersey|afa|selecci.n/i,
+  'remera': /remera|chomba|top/i, // Removed 'camiseta' from here to avoid conflict
   'pantalon': /pantalon|jean|jogger|legging|calza/i,
   'short': /short|bermuda/i,
   'campera': /campera|chaqueta|buzo|canguro|hoodie/i,
@@ -16,14 +18,14 @@ const TYPES: Record<string, RegExp> = {
 const COLORS: Record<string, RegExp> = {
   'negro': /negro|black/i,
   'blanco': /blanco|white/i,
-  'azul': /azul|blue|marino/i,
-  'rojo': /rojo|red/i,
+  'azul': /azul|blue|marino|celeste/i, // Added celeste
+  'rojo': /rojo|red|bordo/i,
   'verde': /verde|green/i,
   'gris': /gris|grey/i,
-  'rosa': /rosa|pink/i,
+  'rosa': /rosa|pink|fucsia/i,
   'amarillo': /amarillo|yellow/i,
   'naranja': /naranja|orange/i,
-  'violeta': /violeta|purple/i,
+  'violeta': /violeta|purple|lila/i,
   'beige': /beige/i,
   'multicolor': /multicolor|estampado/i
 };
