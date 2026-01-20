@@ -76,9 +76,8 @@ export function extractWithSelectors(html: string, selectors: ProductSelectors):
 }
 
 export async function generateSelectorsWithAI(htmlContent: string, model: string = 'ministral-3'): Promise<ProductSelectors> {
-  // Limit context for AI to avoid token overflow, but keep enough structure
-  // Cheerio .html() can be huge. Let's slice body.
-  const slicedHtml = htmlContent.replace(/\s+/g, ' ').trim().slice(0, 15000);
+  // Increased limit for structure analysis
+  const slicedHtml = htmlContent.replace(/\s+/g, ' ').trim().slice(0, 50000);
 
   const prompt = `
     Analyze the following HTML snippet of a product page.
@@ -118,7 +117,14 @@ export async function generateSelectorsWithAI(htmlContent: string, model: string
 
     const data = await res.json() as { response: string };
     const jsonStr = data.response.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(jsonStr) as ProductSelectors;
+    const selectors = JSON.parse(jsonStr) as ProductSelectors;
+
+    // Validate selectors
+    if (!selectors.name && !selectors.price) {
+      throw new Error("AI returned empty selectors for critical fields");
+    }
+
+    return selectors;
   } catch (error) {
     clearTimeout(timeoutId);
     console.error("Error generating selectors with AI:", error);
@@ -128,7 +134,8 @@ export async function generateSelectorsWithAI(htmlContent: string, model: string
 
 // Fallback function
 export async function extractDataWithAI(htmlContent: string, model: string = 'ministral-3'): Promise<ExtractedProduct> {
-  const slicedHtml = htmlContent.replace(/\s+/g, ' ').trim().slice(0, 10000);
+  // Moderate limit for direct extraction
+  const slicedHtml = htmlContent.replace(/\s+/g, ' ').trim().slice(0, 25000);
 
   const prompt = `
     Extract structured product data from this HTML.

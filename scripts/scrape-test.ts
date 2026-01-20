@@ -61,7 +61,9 @@ async function run() {
             selectorCache.set(domain, currentSelectors);
             productData = extractWithSelectors(html, currentSelectors);
           } catch (e) {
-            console.error("      ! AI Selector generation failed. Fallback to direct extraction.");
+            console.error("      ! AI Selector generation failed/invalid. Fallback to direct extraction.");
+            // Do NOT cache selectors if they failed validation
+            currentSelectors = undefined;
             productData = await extractDataWithAI(html, 'ministral-3');
           }
         }
