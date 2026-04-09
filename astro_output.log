@@ -19,3 +19,23 @@
 20:53:55 watching for file changes...
 20:54:19 [200] / 350ms
 [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+21:00:22 Configuration file updated. Restarting...
+21:00:22 [watch] package.json
+21:00:22 [watch] package.json
+21:00:22 [@astrojs/cloudflare] Enabling sessions with Cloudflare KV with the "SESSION" KV binding.
+21:00:22 [@astrojs/cloudflare] If you see the error "Invalid binding `SESSION`" in your build output, you need to add the binding to your wrangler config file.
+21:00:22 [WARN] [adapter] Cloudflare does not support sharp at runtime. However, you can configure `imageService: "compile"` to optimize images with sharp on prerendered pages during build time.
+21:00:24 [vite] Re-optimizing dependencies because vite config has changed
+21:00:24 [content] Syncing content
+21:00:24 [content] Synced content
+21:00:24 [types] Generated 821ms
+21:00:24 [vite] Re-optimizing dependencies because vite config has changed
+21:01:11 Configuration file updated. Restarting...
+21:01:12 [@astrojs/cloudflare] Enabling sessions with Cloudflare KV with the "SESSION" KV binding.
+21:01:12 [@astrojs/cloudflare] If you see the error "Invalid binding `SESSION`" in your build output, you need to add the binding to your wrangler config file.
+21:01:12 [WARN] [adapter] Cloudflare does not support sharp at runtime. However, you can configure `imageService: "compile"` to optimize images with sharp on prerendered pages during build time.
+21:01:12 [vite] Re-optimizing dependencies because vite config has changed
+21:01:13 [content] Syncing content
+21:01:13 [content] Synced content
+21:01:13 [types] Generated 678ms
+21:01:13 [vite] Re-optimizing dependencies because vite config has changed
