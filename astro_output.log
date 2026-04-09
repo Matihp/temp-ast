@@ -39,3 +39,30 @@
 21:01:13 [content] Synced content
 21:01:13 [types] Generated 678ms
 21:01:13 [vite] Re-optimizing dependencies because vite config has changed
+21:23:34 Configuration file updated. Restarting...
+21:23:35 [@astrojs/cloudflare] Enabling sessions with Cloudflare KV with the "SESSION" KV binding.
+21:23:35 [@astrojs/cloudflare] If you see the error "Invalid binding `SESSION`" in your build output, you need to add the binding to your wrangler config file.
+21:23:35 [WARN] [adapter] Cloudflare does not support sharp at runtime. However, you can configure `imageService: "compile"` to optimize images with sharp on prerendered pages during build time.
+21:23:37 [vite] Re-optimizing dependencies because vite config has changed
+21:23:38 [content] Syncing content
+21:23:38 [content] Synced content
+21:23:38 [types] Generated 1.42s
+21:23:38 [vite] Re-optimizing dependencies because vite config has changed
+21:25:41 Configuration file updated. Restarting...
+21:25:41 [@astrojs/cloudflare] Enabling sessions with Cloudflare KV with the "SESSION" KV binding.
+21:25:41 [@astrojs/cloudflare] If you see the error "Invalid binding `SESSION`" in your build output, you need to add the binding to your wrangler config file.
+21:25:41 [WARN] [adapter] Cloudflare does not support sharp at runtime. However, you can configure `imageService: "compile"` to optimize images with sharp on prerendered pages during build time.
+21:25:44 [vite] Re-optimizing dependencies because lockfile has changed
+21:25:44 [content] Syncing content
+21:25:44 [content] Synced content
+21:25:44 [types] Generated 2.23s
+21:25:44 [vite] Re-optimizing dependencies because vite config has changed
+21:27:31 Configuration file updated. Restarting...
+21:27:31 [@astrojs/cloudflare] Enabling sessions with Cloudflare KV with the "SESSION" KV binding.
+21:27:31 [@astrojs/cloudflare] If you see the error "Invalid binding `SESSION`" in your build output, you need to add the binding to your wrangler config file.
+21:27:31 [WARN] [adapter] Cloudflare does not support sharp at runtime. However, you can configure `imageService: "compile"` to optimize images with sharp on prerendered pages during build time.
+21:27:32 [vite] Re-optimizing dependencies because vite config has changed
+21:27:32 [content] Syncing content
+21:27:32 [content] Synced content
+21:27:32 [types] Generated 688ms
+21:27:32 [vite] Re-optimizing dependencies because vite config has changed
