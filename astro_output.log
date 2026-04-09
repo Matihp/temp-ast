@@ -1,0 +1,21 @@
+
+> astro-cloudflare-pages@0.0.1 dev
+> astro dev
+
+(node:480754) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+20:53:54 [@astrojs/cloudflare] Enabling sessions with Cloudflare KV with the "SESSION" KV binding.
+20:53:54 [@astrojs/cloudflare] If you see the error "Invalid binding `SESSION`" in your build output, you need to add the binding to your wrangler config file.
+20:53:54 [WARN] [adapter] Cloudflare does not support sharp at runtime. However, you can configure `imageService: "compile"` to optimize images with sharp on prerendered pages during build time.
+20:53:55 [types] Generated 1ms
+20:53:55 [content] Syncing content
+20:53:55 [content] Synced content
+
+ astro  v5.16.1 ready in 2051 ms
+
+┃ Local    http://localhost:4321/
+┃ Network  use --host to expose
+
+20:53:55 watching for file changes...
+20:54:19 [200] / 350ms
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
